@@ -1,0 +1,3 @@
+Game Phase,count,mean,std,median,iqr,min,max,p25,p75
+After 15,1114,9.61,7.88,7.0,9.0,1,65,4.0,13.0
+Before 15,2569,10.04,7.82,8.0,9.0,1,60,4.0,13.0

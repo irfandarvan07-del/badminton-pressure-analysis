@@ -1,0 +1,14 @@
+{
+  "raw_matches_count": 44,
+  "raw_sets_count": 104,
+  "raw_shots_count": 36484,
+  "duplicate_shots_removed": 1,
+  "invalid_score_rallies_flagged": 0,
+  "discontinuous_ball_rounds_flagged": 1,
+  "unrecorded_endings_count": 176,
+  "cleaned_shots_count": 36483,
+  "cleaned_rallies_count": 3683,
+  "exclusions_log": [
+    "Match 5 Set 3: Removed 1 duplicate rows."
+  ]
+}
