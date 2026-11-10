@@ -272,17 +272,19 @@ def run_all_statistical_tests(
 
     # Q3: Unforced errors Before 15 vs After 15
     classifiable = canonical_df[canonical_df["ending_type"] != "unknown"]
-    b15_ue = int((classifiable[classifiable["game_phase"] == "Before 15"]["unforced_error"] == True).sum())
-    b15_win = int((classifiable[classifiable["game_phase"] == "Before 15"]["ending_type"] == "winner").sum())
-    a15_ue = int((classifiable[classifiable["game_phase"] == "After 15"]["unforced_error"] == True).sum())
-    a15_win = int((classifiable[classifiable["game_phase"] == "After 15"]["ending_type"] == "winner").sum())
-    ue_phase_table = np.array([[b15_ue, b15_win], [a15_ue, a15_win]])
+    b15_class = classifiable[classifiable["game_phase"] == "Before 15"]
+    a15_class = classifiable[classifiable["game_phase"] == "After 15"]
+    b15_ue = int((b15_class["unforced_error"] == True).sum())
+    b15_non_ue = len(b15_class) - b15_ue
+    a15_ue = int((a15_class["unforced_error"] == True).sum())
+    a15_non_ue = len(a15_class) - a15_ue
+    ue_phase_table = np.array([[b15_ue, b15_non_ue], [a15_ue, a15_non_ue]])
     q3_ue_phase = chi_square_contingency_test(
         ue_phase_table,
         label_row1="Before 15",
         label_row2="After 15",
         label_col1="Unforced Error",
-        label_col2="Winner"
+        label_col2="Non-Unforced-Error Ending"
     )
 
     # Q4: Men's Singles vs Women's Singles
@@ -299,14 +301,16 @@ def run_all_statistical_tests(
     ms_class = classifiable[classifiable["category"] == "Men's Singles"]
     ws_class = classifiable[classifiable["category"] == "Women's Singles"]
     ms_ue = int((ms_class["unforced_error"] == True).sum())
-    ms_win = int((ms_class["ending_type"] == "winner").sum())
+    ms_non_ue = len(ms_class) - ms_ue
     ws_ue = int((ws_class["unforced_error"] == True).sum())
-    ws_win = int((ws_class["ending_type"] == "winner").sum())
-    ue_cat_table = np.array([[ms_ue, ms_win], [ws_ue, ws_win]])
+    ws_non_ue = len(ws_class) - ws_ue
+    ue_cat_table = np.array([[ms_ue, ms_non_ue], [ws_ue, ws_non_ue]])
     q4_ue_category = chi_square_contingency_test(
         ue_cat_table,
         label_row1="Men's Singles",
-        label_row2="Women's Singles"
+        label_row2="Women's Singles",
+        label_col1="Unforced Error",
+        label_col2="Non-Unforced-Error Ending"
     )
 
     # Robustness check

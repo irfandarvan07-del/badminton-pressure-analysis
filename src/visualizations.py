@@ -9,6 +9,7 @@ import sys
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy import stats
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
@@ -41,14 +42,24 @@ def plot_rally_length_distribution_by_score_state(
     """Figure 1: Rally-length distribution by score state."""
     fig, ax = plt.subplots(figsize=(8, 5))
     
-    states = ["Leading", "Level", "Trailing"]
-    for s in states:
+    states = [
+        ("Leading", "-", 2.2, 0.25),
+        ("Level", "-", 2.2, 0.35),
+        ("Trailing", "--", 2.0, 0.0)
+    ]
+    for s, ls, lw, fill_alpha in states:
         subset = perspective_df[perspective_df["score_state"] == s]["rally_length"].dropna()
         n = len(subset)
         med = np.median(subset)
+        if fill_alpha > 0:
+            ax.hist(
+                subset, bins=np.arange(1, 40, 2), density=True, alpha=fill_alpha,
+                color=COLORS[s]
+            )
         ax.hist(
-            subset, bins=np.arange(1, 40, 2), density=True, alpha=0.45,
-            color=COLORS[s], label=f"{s} (N={n}, Med={med:.0f})"
+            subset, bins=np.arange(1, 40, 2), density=True, histtype="step",
+            linewidth=lw, linestyle=ls, color=COLORS[s],
+            label=f"{s} (N={n}, Med={med:.0f})"
         )
 
     ax.set_title("Rally Length Distribution by Score State (Elite International Singles)")
@@ -95,15 +106,15 @@ def plot_median_rally_length_by_score_state(
         color=[COLORS[s] for s in states], alpha=0.85, width=0.55
     )
 
-    for i, (b, c, m) in enumerate(zip(bars, counts, medians)):
-        ax.text(b.get_x() + b.get_width() / 2, m + 0.3, f"{m:.1f} strokes\n(N={c})",
+    for i, (b, c, m, top) in enumerate(zip(bars, counts, medians, q75s)):
+        ax.text(b.get_x() + b.get_width() / 2, top + 0.4, f"Med = {m:.1f} strokes\n(N = {c})",
                 ha="center", va="bottom", fontsize=9, fontweight="bold")
 
     ax.set_xticks(x)
     ax.set_xticklabels(states)
     ax.set_ylabel("Median Rally Length (Strokes, with IQR Error Bars)")
     ax.set_title("Median Rally Length by Score State (Baseline Starts at 0)")
-    ax.set_ylim(0, 16)
+    ax.set_ylim(0, 16.5)
     plt.tight_layout()
 
     out_path = os.path.join(output_dir, "2_median_rally_length_by_score_state.png")
@@ -133,15 +144,20 @@ def plot_rally_length_before_vs_after_15(
     box["boxes"][0].set_alpha(0.7)
     box["boxes"][1].set_alpha(0.7)
 
-    # Annotate stats
-    ax.text(1, np.median(b15) + 0.5, f"Med={np.median(b15):.0f}, Mean={np.mean(b15):.1f}\nN={len(b15)}",
-            ha="center", fontsize=9)
-    ax.text(2, np.median(a15) + 0.5, f"Med={np.median(a15):.0f}, Mean={np.mean(a15):.1f}\nN={len(a15)}",
-            ha="center", fontsize=9)
+    # Annotate stats cleanly at top above whiskers
+    w1_top = box["whiskers"][1].get_ydata()[1]
+    w2_top = box["whiskers"][3].get_ydata()[1]
+    ax.text(1, w1_top + 0.8, f"Med = {np.median(b15):.0f}, Mean = {np.mean(b15):.2f}\n(N = {len(b15)})",
+            ha="center", va="bottom", fontsize=9, fontweight="bold",
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="#cccccc", alpha=0.9))
+    ax.text(2, w2_top + 0.8, f"Med = {np.median(a15):.0f}, Mean = {np.mean(a15):.2f}\n(N = {len(a15)})",
+            ha="center", va="bottom", fontsize=9, fontweight="bold",
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="#cccccc", alpha=0.9))
 
+    _, p_mw = stats.mannwhitneyu(b15, a15, alternative="two-sided") if len(b15) > 0 and len(a15) > 0 else (0, 1.0)
     ax.set_ylabel("Rally Length (Strokes per Rally)")
-    ax.set_title("Rally Length by Game Phase (Mann-Whitney p = 0.029)")
-    ax.set_ylim(bottom=0)
+    ax.set_title(f"Rally Length by Game Phase (Mann-Whitney p = {p_mw:.3f})")
+    ax.set_ylim(0, max(w1_top, w2_top) + 5)
     plt.tight_layout()
 
     out_path = os.path.join(output_dir, "3_rally_length_before_vs_after_15.png")
@@ -161,18 +177,23 @@ def plot_unforced_error_rate_before_vs_after_15(
     rates = []
     denominators = []
     errors = []
+    ue_counts = []
 
     for p in phases:
         sub = classifiable[classifiable["game_phase"] == p]
         n = len(sub)
         ue = int((sub["unforced_error"] == True).sum())
+        ue_counts.append(ue)
         p_hat = ue / n if n > 0 else 0
-        # 95% Wilson score confidence interval
+        # 95% Wilson/Wald confidence interval
         z = 1.96
         ci = z * np.sqrt(p_hat * (1 - p_hat) / n) if n > 0 else 0
         rates.append(p_hat * 100)
         denominators.append(n)
         errors.append(ci * 100)
+
+    tbl = [[ue_counts[0], denominators[0] - ue_counts[0]], [ue_counts[1], denominators[1] - ue_counts[1]]]
+    _, p_chi, _, _ = stats.chi2_contingency(tbl, correction=True) if min(denominators) > 0 else (0, 1.0, 1, None)
 
     x = np.arange(len(phases))
     bars = ax.bar(
@@ -187,7 +208,7 @@ def plot_unforced_error_rate_before_vs_after_15(
     ax.set_xticks(x)
     ax.set_xticklabels(["Before 15 Points", "After 15 Points"])
     ax.set_ylabel("Unforced Error Rate (%) on Classifiable Rallies")
-    ax.set_title("Unforced Error Rate Before 15 vs After 15 Points (Chi2 p = 0.121)")
+    ax.set_title(f"Unforced Error Rate Before 15 vs After 15 Points (Chi2 p = {p_chi:.3f})")
     ax.set_ylim(0, 100)
     plt.tight_layout()
 
@@ -259,10 +280,13 @@ def plot_unforced_error_by_score_state(
         ax.text(b.get_x() + b.get_width() / 2, r + 1, f"{r:.1f}%\n({c})",
                 ha="center", va="bottom", fontweight="bold", fontsize=10)
 
+    tbl_ue = [[lead_ue, lead_opp - lead_ue], [trail_ue, trail_opp - trail_ue]]
+    _, p_ue, _, _ = stats.chi2_contingency(tbl_ue, correction=True) if lead_opp > 0 and trail_opp > 0 else (0, 1.0, 1, None)
+
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     ax.set_ylabel("Unforced Error Rate per Opportunity (%)")
-    ax.set_title("Unforced Error Propensity by Score State (Chi2 p = 1.7e-7)")
+    ax.set_title(f"Unforced Error Propensity by Score State (Chi2 p = {p_ue:.2e})")
     ax.set_ylim(0, 50)
     plt.tight_layout()
 
@@ -298,3 +322,4 @@ if __name__ == "__main__":
     print("Visualizations successfully generated:")
     for p in generated:
         print(f"- {p}")
+

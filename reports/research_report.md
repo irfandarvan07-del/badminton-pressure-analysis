@@ -111,9 +111,9 @@ An unforced error is defined as a classifiable rally-ending fault committed by t
 
 ### 6.3 Q3: Unforced Errors After 15 Points
 - **Proportions Comparison:**
-  - Before 15 points: $1,608 / 2,420 = \mathbf{66.45\%}$
-  - After 15 points: $660 / 1,037 = \mathbf{63.65\%}$
-  - $\chi^2 = 2.402$, $\text{dof} = 1$, **$p = 0.1212$** (Odds Ratio = $1.131$).
+  - Before 15 points: $1,608 / 2,450 = \mathbf{65.63\%}$
+  - After 15 points: $660 / 1,058 = \mathbf{62.38\%}$
+  - $\chi^2 = 3.276$, $\text{dof} = 1$, **$p = 0.0703$** (Odds Ratio = $1.152$).
   - *Finding:* Unforced error rates do **not** significantly increase after 15 points. At elite international levels, errors remain stable while decisive winners account for a slightly higher proportion of late-game closures.
 
 ### 6.4 Q4: Men's vs. Women's Singles
@@ -122,9 +122,9 @@ An unforced error is defined as a classifiable rally-ending fault committed by t
   - $U = 1,301,502.5$, **$p = 1.059 \times 10^{-5}$**, rank-biserial $r = -0.100$.
   - *Finding:* Men's singles rallies are significantly longer than women's singles rallies in this elite sample.
 - **Unforced Error Rate (Chi-Square):**
-  - Men's Singles: $1,722 / 2,643 = 65.15\%$
-  - Women's Singles: $546 / 814 = 67.08\%$
-  - $\chi^2 = 0.936$, $p = 0.3332$. No significant difference between genders.
+  - Men's Singles: $1,722 / 2,688 = 64.06\%$
+  - Women's Singles: $546 / 820 = 66.59\%$
+  - $\chi^2 = 1.642$, $p = 0.2001$. No significant difference between genders.
 
 ---
 
@@ -142,4 +142,5 @@ This study provides empirical, shot-level confirmation of scoreboard pressure dy
 1. **Deficit pressure drives unforced errors:** Trailing players commit significantly more unforced errors ($33.62\%$ vs $27.58\%$, $p < 0.0001$).
 2. **Late-game pacing accelerates:** Rallies shorten after 15 points (median drops from 8.0 to 7.0 strokes, $p = 0.029$).
 3. **Closing-stage error stability:** High error rates are sustained throughout games rather than peaking solely after 15 points.
-4. **Gender differences:** Rally length is significantly greater in Men's Singles ($p < 0.0001$), but unforced error proportions remain virtually identical across genders ($p = 0.333$).
+4. **Gender differences:** Rally length is significantly greater in Men's Singles ($p < 0.0001$), but unforced error proportions remain virtually identical across genders ($p = 0.200$).
+

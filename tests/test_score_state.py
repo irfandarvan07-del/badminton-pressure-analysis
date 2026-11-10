@@ -69,3 +69,4 @@ def test_rally_score_context():
     assert ctx_early["score_state_A"] == "Level"
     assert ctx_early["score_state_B"] == "Level"
     assert ctx_early["game_phase"] == "Before 15"
+

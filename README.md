@@ -119,5 +119,6 @@ streamlit run app/dashboard.py
 | :--- | :--- | :--- | :--- |
 | **Q1: Leading vs Trailing** | Stroke lengths are identical (Med=8.0); **Trailing players commit unforced errors at 33.6% vs 27.6% for Leading players**. | Chi-square = 27.33, $p = 1.72 \times 10^{-7}$ | **Statistically Significant Deficit Pressure** |
 | **Q2: Game Phase (Late Game)** | Rallies shorten after 15 points (Median: 8.0 $\to$ 7.0 strokes; Mean: 10.04 $\to$ 9.61 strokes). | Mann-Whitney $U = 1,495,430.5$, $p = 0.0293$ | **Statistically Significant Reduction** |
-| **Q3: Unforced Errors Late Game** | Error rate remains stable before 15 (66.5%) vs after 15 (63.6%). | Chi-square = 2.402, $p = 0.1212$ | **No Significant Increase** |
-| **Q4: Men's vs Women's Singles** | Men's rallies (Med=8.0, Mean=10.3) are longer than Women's rallies (Med=7.0, Mean=8.55). Error rates do not differ significantly (65.1% vs 67.1%). | Mann-Whitney $U = 1,301,502.5$, $p = 1.06 \times 10^{-5}$ | **Statistically Significant Difference in Rally Length** |
+| **Q3: Unforced Errors Late Game** | Error rate remains stable before 15 (65.6%) vs after 15 (62.4%). | Chi-square = 3.276, $p = 0.0703$ | **No Significant Increase** |
+| **Q4: Men's vs Women's Singles** | Men's rallies (Med=8.0, Mean=10.3) are longer than Women's rallies (Med=7.0, Mean=8.55). Error rates do not differ significantly (64.1% vs 66.6%). | Mann-Whitney $U = 1,301,502.5$, $p = 1.06 \times 10^{-5}$ | **Statistically Significant Difference in Rally Length** |
+

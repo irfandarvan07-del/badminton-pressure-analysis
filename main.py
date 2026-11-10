@@ -115,12 +115,12 @@ def run_pipeline():
     print(f"   - Leading State: Median = {stats_results['q1_score_state']['median1']} strokes, Mean = {stats_results['q1_score_state']['mean1']} strokes")
     print(f"   - Trailing State: Median = {stats_results['q1_score_state']['median2']} strokes, Mean = {stats_results['q1_score_state']['mean2']} strokes")
     print(f"   - Mann-Whitney U = {stats_results['q1_score_state']['u_statistic']}, p = {stats_results['q1_score_state']['p_value']:.4f} (no difference in stroke count)")
-    print(f"   - DEFICIT ERROR DYNAMICS: Trailing players commit unforced errors on 33.6% of rallies vs 27.6% for leading players (Chi2 p = 1.7e-7, highly significant!).")
+    print(f"   - DEFICIT ERROR DYNAMICS: Trailing players commit unforced errors on {stats_results['q1_error_rate_lead_vs_trail']['row2_rate']*100:.1f}% of rallies vs {stats_results['q1_error_rate_lead_vs_trail']['row1_rate']*100:.1f}% for leading players (Chi2 p = {stats_results['q1_error_rate_lead_vs_trail']['p_value']:.2e}, highly significant!).")
 
     print("\n2. Does rally length change in the later part of a game?")
     print(f"   - Before 15 points: Median = {stats_results['q2_game_phase']['median1']} strokes, Mean = {stats_results['q2_game_phase']['mean1']} strokes (n={stats_results['q2_game_phase']['n1']})")
     print(f"   - After 15 points: Median = {stats_results['q2_game_phase']['median2']} strokes, Mean = {stats_results['q2_game_phase']['mean2']} strokes (n={stats_results['q2_game_phase']['n2']})")
-    print(f"   - Mann-Whitney U = {stats_results['q2_game_phase']['u_statistic']}, p = {stats_results['q2_game_phase']['p_value']:.4f} (Statistically significant reduction in late game; rallies shorten by ~0.7 strokes on average).")
+    print(f"   - Mann-Whitney U = {stats_results['q2_game_phase']['u_statistic']}, p = {stats_results['q2_game_phase']['p_value']:.4f} (Statistically significant reduction in late game).")
 
     print("\n3. Do unforced errors become more frequent after 15 points?")
     print(f"   - Before 15 points: {stats_results['q3_unforced_errors']['row1_rate']*100:.1f}% unforced error rate")
@@ -131,7 +131,7 @@ def run_pipeline():
     print(f"   - Men's Singles Rally Length: Median = {stats_results['q4_category_rally_length']['median1']} strokes, Mean = {stats_results['q4_category_rally_length']['mean1']} strokes")
     print(f"   - Women's Singles Rally Length: Median = {stats_results['q4_category_rally_length']['median2']} strokes, Mean = {stats_results['q4_category_rally_length']['mean2']} strokes")
     print(f"   - Mann-Whitney U = {stats_results['q4_category_rally_length']['u_statistic']}, p = {stats_results['q4_category_rally_length']['p_value']:.4e} (Men's rallies significantly longer).")
-    print(f"   - Unforced Error Rates: Men's = {stats_results['q4_category_unforced_errors']['row1_rate']*100:.1f}%, Women's = {stats_results['q4_category_unforced_errors']['row2_rate']*100:.1f}% (Chi2 p = 0.333, no significant difference).")
+    print(f"   - Unforced Error Rates: Men's = {stats_results['q4_category_unforced_errors']['row1_rate']*100:.1f}%, Women's = {stats_results['q4_category_unforced_errors']['row2_rate']*100:.1f}% (Chi2 p = {stats_results['q4_category_unforced_errors']['p_value']:.4f}, no significant difference).")
     
     print("\n=========================================================================")
     print("PIPELINE EXECUTION COMPLETED SUCCESSFULLY!")
@@ -139,3 +139,4 @@ def run_pipeline():
 
 if __name__ == "__main__":
     run_pipeline()
+

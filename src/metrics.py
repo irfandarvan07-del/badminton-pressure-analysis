@@ -235,3 +235,4 @@ if __name__ == "__main__":
     print("\nUnforced Error Rates by Category:")
     for k, v in summary["unforced_errors"]["by_category"].items():
         print(f"  {k}: Rate={v['unforced_error_rate']*100:.1f}%, UEs={v['unforced_errors']}/{v['classifiable_rallies']}")
+

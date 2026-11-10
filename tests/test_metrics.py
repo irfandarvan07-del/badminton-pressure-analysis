@@ -60,3 +60,4 @@ def test_unforced_error_metrics_calculation():
     assert res["unclassified_endings"] == 1
     # 2 UEs out of 3 classifiable = 0.6667
     assert res["overall_unforced_error_rate_classifiable"] == 0.6667
+
