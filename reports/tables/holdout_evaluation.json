@@ -1,0 +1,22 @@
+{
+  "Global baseline": {
+    "log_loss": 0.6294,
+    "brier_score": 0.2188,
+    "n_rallies": 7016
+  },
+  "Category baseline": {
+    "log_loss": 0.6294,
+    "brier_score": 0.2188,
+    "n_rallies": 7016
+  },
+  "Lookup (category-specific)": {
+    "log_loss": 0.6281,
+    "brier_score": 0.2182,
+    "n_rallies": 7016
+  },
+  "Lookup (All categories)": {
+    "log_loss": 0.6276,
+    "brier_score": 0.218,
+    "n_rallies": 7016
+  }
+}

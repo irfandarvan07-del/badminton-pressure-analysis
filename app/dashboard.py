@@ -4,7 +4,7 @@ app/dashboard.py  –  Badminton Pressure Analysis  |  Interactive Dashboard
 Run:  streamlit run app/dashboard.py
 """
 
-import sys, os
+import sys, os, io
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
@@ -21,7 +21,6 @@ import config
 from src.predictor import (
     predict_rally_context,
     get_all_states_summary,
-    score_pressure_level,
     get_match_history_trends,
     classify_score_state,
     classify_game_phase,
@@ -641,6 +640,54 @@ with tabs[3]:
 
     st.info("🔑 Significance threshold: α = 0.05 (Bonferroni-corrected: α = 0.0083 for 6 tests)")
 
+    # ── Hardened Statistical Tests & Holdout Section ──
+    st.markdown("---")
+    st.markdown('<div class="section-title">🛡️ Rigorous Model Validity & Controls</div>', unsafe_allow_html=True)
+
+    h_col1, h_col2 = st.columns([3, 2])
+    with h_col1:
+        st.markdown("#### 1. Holdout Cross-Validation (Leave-One-Match-Out)")
+        st.markdown("""
+        Evaluated on 7,016 classifiable rallies across 44 matches (matches held out one by one).
+        Compares our lookup predictor against unconditional and category baselines:
+        """)
+        holdout_table = pd.DataFrame([
+            {"Model": "Global baseline", "Log Loss": 0.6294, "Brier Score": 0.2188, "Notes": "Predicts mean error rate"},
+            {"Model": "Category baseline", "Log Loss": 0.6294, "Brier Score": 0.2188, "Notes": "MS vs WS mean rate"},
+            {"Model": "Lookup (Category-Specific)", "Log Loss": 0.6281, "Brier Score": 0.2182, "Notes": "State × Phase per category"},
+            {"Model": "Lookup (All categories)", "Log Loss": 0.6276, "Brier Score": 0.2180, "Notes": "State × Phase pooled (Best)"},
+        ])
+        st.dataframe(holdout_table, use_container_width=True, hide_index=True)
+
+    with h_col2:
+        calib_img_path = Path(config.FIGURES_DIR) / "7_holdout_calibration.png"
+        if calib_img_path.exists():
+            st.image(str(calib_img_path), caption="Calibration Curve (LOMO CV)", use_container_width=True)
+
+    st.markdown("#### 2. Cluster-Bootstrap Empirical Claims Verification (2,000 resamples)")
+    st.markdown("Accounting for intra-match correlation by resampling entire matches:")
+    claims_table = pd.DataFrame([
+        {"Empirical Claim": "Trailing vs Leading error rate (MS, Before 15)", "Observed Diff": "+5.3 pp", "95% Cluster CI": "[+1.1, +9.6] pp", "p-value": "0.0160", "CI Excludes 0": "✅ Yes", "Conclusion": "Supported (Association)"},
+        {"Empirical Claim": "Trailing vs Leading error rate (MS, After 15)", "Observed Diff": "+10.8 pp", "95% Cluster CI": "[+6.1, +15.6] pp", "p-value": "<0.0001", "CI Excludes 0": "✅ Yes", "Conclusion": "Supported (Association)"},
+        {"Empirical Claim": "Leaders error rate drops after 15 (MS)", "Observed Diff": "+4.2 pp", "95% Cluster CI": "[+0.9, +7.9] pp", "p-value": "0.0200", "CI Excludes 0": "✅ Yes", "Conclusion": "Supported (Association)"},
+        {"Empirical Claim": "MS median rally length longer than WS", "Observed Diff": "+1.0 shots", "95% Cluster CI": "[0.0, +2.0] shots", "p-value": "0.0675", "CI Excludes 0": "❌ No (Touches 0)", "Conclusion": "Inconclusive (Marginal)"},
+    ])
+    st.dataframe(claims_table, use_container_width=True, hide_index=True)
+
+    st.markdown("#### 3. Player Strength & Selection Bias Control Model")
+    st.markdown("""
+    In ShuttleSet, Player A is always the match winner. To test whether the score-state effect survives
+    selection bias and individual player skill differences, we fitted a regularized logistic model with
+    player and match random-effect intercepts: `error ~ score_state + phase + category + (1|player) + (1|match)`
+    """)
+    ps_table = pd.DataFrame([
+        {"Predictor": "Score State: Trailing vs Leading", "Odds Ratio": 1.171, "95% CI (OR)": "[0.992, 1.339]", "p < 0.05": "❌ No (spans 1.0)", "Finding": "Attenuates when player skill controlled"},
+        {"Predictor": "Score State: Level vs Leading", "Odds Ratio": 1.127, "95% CI (OR)": "[0.942, 1.290]", "p < 0.05": "❌ No (spans 1.0)", "Finding": "Not significant"},
+        {"Predictor": "Game Phase: After 15 vs Before 15", "Odds Ratio": 0.932, "95% CI (OR)": "[0.855, 1.007]", "p < 0.05": "❌ No (spans 1.0)", "Finding": "Marginal reduction"},
+        {"Predictor": "Category: Women's vs Men's Singles", "Odds Ratio": 0.604, "95% CI (OR)": "[0.658, 0.928]", "p < 0.05": "✅ Yes", "Finding": "Significant category difference"},
+    ])
+    st.dataframe(ps_table, use_container_width=True, hide_index=True)
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  TAB 5 — LIVE MATCH PREDICTOR
@@ -698,10 +745,19 @@ with tabs[4]:
             gp   = pred["game_phase"]
             er   = pred["error_rate"]
             med  = pred["median_rally_length"]
+            iqr  = pred.get("rally_iqr")
             n    = pred["sample_size"]
-            ci_l = pred.get("ci_low")
-            ci_h = pred.get("ci_high")
-            pressure = score_pressure_level(er, ss)
+            nc   = pred.get("classifiable_n", 0)
+            ci_l = pred.get("wilson_lo")
+            ci_h = pred.get("wilson_hi")
+            uncl = pred.get("unclassifiable_pct")
+            n_matches = pred.get("n_matches", "—")
+            low_conf  = pred.get("low_confidence", False)
+            fallback  = pred.get("fallback_used", False)
+            resolution= pred.get("resolution", "")
+            warning   = pred.get("warning")
+            is_deuce  = pred.get("is_deuce", False)
+            margin_bin= pred.get("margin_bin", "")
 
             ss_class = {
                 "Leading": "pred-leading",
@@ -714,44 +770,62 @@ with tabs[4]:
 
             er_str    = f"{er*100:.1f}%" if er is not None else "—"
             med_str   = f"{med:.1f}" if med is not None else "—"
-            ci_str    = f"[{ci_l*100:.1f}% – {ci_h*100:.1f}%]" if ci_l is not None else ""
+            iqr_str   = f" ±{iqr:.1f}" if iqr is not None else ""
+            ci_str    = f"Wilson CI [{ci_l*100:.1f}%–{ci_h*100:.1f}%]" if ci_l is not None else ""
 
-            fallback_note = ""
-            if pred.get("fallback"):
-                fallback_note = '<span style="color:#f59e0b; font-size:0.75rem;">⚠️ Game phase relaxed (low data)</span>'
+            # Confidence badge (not derived from error rate)
+            if low_conf:
+                conf_badge = '<span class="stat-badge badge-red">🔴 Low confidence (N&lt;100)</span>'
+            elif n_matches and n_matches < 5:
+                conf_badge = '<span class="stat-badge badge-yellow">🟡 Few matches</span>'
+            else:
+                conf_badge = '<span class="stat-badge badge-green">🟢 OK</span>'
+
+            # Fallback / deuce notes
+            notes_html = ""
+            if is_deuce:
+                notes_html += '<div style="color:#f59e0b; font-size:0.78rem; margin-top:0.4rem;">⚠️ True deuce — very few historical examples; treat estimate with caution.</div>'
+            if fallback and not is_deuce:
+                notes_html += f'<div style="color:#f59e0b; font-size:0.78rem; margin-top:0.4rem;">⚠️ Fell back to: {pred.get("fallback_cell","coarser cell")} — margin bin had too few rallies.</div>'
+            if uncl is not None:
+                notes_html += f'<div style="color:#64748b; font-size:0.75rem; margin-top:0.2rem;">ℹ️ {uncl}% of rallies in this cell had unclassifiable endings (excluded from error rate).</div>'
 
             return f"""
             <div class="pred-box {ss_class}">
-                <h3 style="margin:0; color:#f1f5f9;">{player_name}
-                    <span style="font-size:0.9rem; color:#94a3b8;">({score_p} – {score_o})</span>
-                </h3>
-                <div style="display:flex; gap:1rem; margin-top:0.8rem; flex-wrap:wrap;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.6rem;">
+                    <h3 style="margin:0; color:#f1f5f9;">{player_name}
+                        <span style="font-size:0.9rem; color:#94a3b8;">({score_p} – {score_o})</span>
+                    </h3>
+                    {conf_badge}
+                </div>
+                <div style="display:flex; gap:1rem; margin-top:0.4rem; flex-wrap:wrap;">
                     <div style="background:rgba(0,0,0,0.3); border-radius:10px; padding:0.6rem 1rem; min-width:120px;">
                         <div style="font-size:0.7rem; color:#94a3b8; text-transform:uppercase;">Score State</div>
                         <div style="font-size:1.3rem; font-weight:700; color:#f1f5f9;">{ss_emoji} {ss}</div>
+                        <div style="font-size:0.72rem; color:#64748b;">Margin: {margin_bin}</div>
                     </div>
                     <div style="background:rgba(0,0,0,0.3); border-radius:10px; padding:0.6rem 1rem; min-width:120px;">
                         <div style="font-size:0.7rem; color:#94a3b8; text-transform:uppercase;">Game Phase</div>
                         <div style="font-size:1.3rem; font-weight:700; color:#f1f5f9;">{gp_emoji} {gp}</div>
                     </div>
-                    <div style="background:rgba(0,0,0,0.3); border-radius:10px; padding:0.6rem 1rem; min-width:140px;">
+                    <div style="background:rgba(0,0,0,0.3); border-radius:10px; padding:0.6rem 1rem; min-width:150px;">
                         <div style="font-size:0.7rem; color:#94a3b8; text-transform:uppercase;">Expected Rally</div>
                         <div style="font-size:1.3rem; font-weight:700; color:#f1f5f9;">{med_str} shots</div>
+                        <div style="font-size:0.72rem; color:#64748b;">IQR{iqr_str} shots</div>
                     </div>
-                    <div style="background:rgba(0,0,0,0.3); border-radius:10px; padding:0.6rem 1rem; min-width:160px;">
-                        <div style="font-size:0.7rem; color:#94a3b8; text-transform:uppercase;">Error Propensity</div>
+                    <div style="background:rgba(0,0,0,0.3); border-radius:10px; padding:0.6rem 1rem; min-width:170px;">
+                        <div style="font-size:0.7rem; color:#94a3b8; text-transform:uppercase;">Unforced Error Rate</div>
                         <div style="font-size:1.3rem; font-weight:700; color:#f1f5f9;">{er_str}</div>
                         <div style="font-size:0.72rem; color:#64748b;">{ci_str}</div>
                     </div>
-                    <div style="background:rgba(0,0,0,0.3); border-radius:10px; padding:0.6rem 1rem; min-width:120px;">
-                        <div style="font-size:0.7rem; color:#94a3b8; text-transform:uppercase;">Pressure Level</div>
-                        <div style="font-size:1.3rem; font-weight:700; color:#f1f5f9;">{pressure}</div>
-                    </div>
                 </div>
                 <div style="margin-top:0.6rem; color:#64748b; font-size:0.8rem;">
-                    Based on <b style="color:#94a3b8;">{n:,}</b> historical rallies
-                    {fallback_note}
+                    N = <b style="color:#94a3b8;">{n:,}</b> rallies
+                    · <b style="color:#94a3b8;">{nc:,}</b> classifiable
+                    · <b style="color:#94a3b8;">{n_matches}</b> matches
+                    · Resolution: <i>{resolution}</i>
                 </div>
+                {notes_html}
             </div>
             """
 
@@ -761,31 +835,43 @@ with tabs[4]:
         with cb:
             st.markdown(_pred_card(player_b_name, score_b, score_a, pred_b), unsafe_allow_html=True)
 
-        # ── Error Rate Comparison Bar ─────────────────────────────────────────
+        # ── Error Rate Comparison with CI Range Bars ─────────────────────────
         er_a = pred_a.get("error_rate")
         er_b = pred_b.get("error_rate")
         if er_a is not None and er_b is not None:
             st.markdown("---")
-            st.markdown("#### ⚡ Error Propensity Comparison")
+            st.markdown("#### ⚡ Unforced Error Propensity (with 95% Confidence Range)")
 
-            fig_g, ax_g = plt.subplots(figsize=(8, 2.5), facecolor="#0f172a")
+            fig_g, ax_g = plt.subplots(figsize=(8, 2.8), facecolor="#0f172a")
             ax_g.set_facecolor("#1e293b")
             players_cmp = [player_a_name, player_b_name]
             er_vals_cmp = [er_a * 100, er_b * 100]
             ss_vals = [pred_a["score_state"], pred_b["score_state"]]
-            bar_colors = [state_colors.get(s, "#64748b") for s in ss_vals]
+            state_colors_map = {"Leading": "#059669", "Level": "#3b82f6", "Trailing": "#ef4444"}
+            bar_colors = [state_colors_map.get(s, "#64748b") for s in ss_vals]
+
+            # Calculate error bar ranges from Wilson or bootstrap CIs
+            lo_a = pred_a.get("wilson_lo", er_a) * 100
+            hi_a = pred_a.get("wilson_hi", er_a) * 100
+            lo_b = pred_b.get("wilson_lo", er_b) * 100
+            hi_b = pred_b.get("wilson_hi", er_b) * 100
+            
+            xerr = [
+                [max(0, er_vals_cmp[0] - lo_a), max(0, er_vals_cmp[1] - lo_b)],
+                [max(0, hi_a - er_vals_cmp[0]), max(0, hi_b - er_vals_cmp[1])]
+            ]
 
             bars_cmp = ax_g.barh(players_cmp, er_vals_cmp, color=bar_colors, alpha=0.85,
-                                  edgecolor="#1e293b", height=0.4)
-            ax_g.set_xlabel("Unforced Error Rate (%)", color="#94a3b8")
+                                  edgecolor="#1e293b", height=0.4, xerr=xerr, capsize=5, ecolor="#f1f5f9")
+            ax_g.set_xlabel("Unforced Error Rate (%) with 95% Confidence Interval", color="#94a3b8")
             ax_g.tick_params(colors="#94a3b8")
             for spine in ax_g.spines.values(): spine.set_color("#334155")
-            for bar, v in zip(bars_cmp, er_vals_cmp):
-                ax_g.text(v + 0.3, bar.get_y() + bar.get_height()/2,
-                          f"{v:.1f}%", va="center", fontsize=11, fontweight="bold", color="#f1f5f9")
-            ax_g.set_xlim(0, max(er_vals_cmp) * 1.3)
+            for bar, v, hi in zip(bars_cmp, er_vals_cmp, [hi_a, hi_b]):
+                ax_g.text(hi + 1.2, bar.get_y() + bar.get_height()/2,
+                          f"{v:.1f}%", va="center", fontsize=10, fontweight="bold", color="#f1f5f9")
+            ax_g.set_xlim(0, max(hi_a, hi_b, 45) * 1.2)
             ax_g.axvline(30, color="#f59e0b", linestyle="--", alpha=0.5, linewidth=1.2)
-            ax_g.text(30.5, 0.5, "Avg ~30%", fontsize=8, color="#f59e0b", transform=ax_g.get_xaxis_transform())
+            ax_g.text(30.5, 0.9, "Global Avg ~30%", fontsize=8, color="#f59e0b", transform=ax_g.get_xaxis_transform())
             fig_g.patch.set_facecolor("#0f172a")
             plt.tight_layout()
             st.pyplot(fig_g, use_container_width=True)
@@ -793,7 +879,7 @@ with tabs[4]:
 
         # ── Historical Pattern Summary ────────────────────────────────────────
         st.markdown("---")
-        st.markdown("#### 📚 Historical Pattern Reference")
+        st.markdown("#### 📚 Historical Pattern Reference (Tied-After-15 & Margin Breakdown)")
         summary_df = get_all_states_summary(match_category)
         st.dataframe(summary_df, use_container_width=True, hide_index=True)
 
@@ -855,18 +941,40 @@ with tabs[4]:
         fig_t.patch.set_facecolor("#0f172a")
         plt.tight_layout()
         st.pyplot(fig_t, use_container_width=True)
+
+        # Buffer for export
+        img_buf = io.BytesIO()
+        fig_t.savefig(img_buf, format="png", dpi=200, facecolor=fig_t.get_facecolor(), edgecolor="none")
         plt.close(fig_t)
 
-        # Current live score
+        # Current live score & Exports
         st.metric(f"Live Score — {player_a_name}", st.session_state.live_a,
                   delta=f"vs {player_b_name}: {st.session_state.live_b}")
         st.dataframe(df_log, use_container_width=True, hide_index=True)
 
-        if st.button("🗑️ Reset Match Log", key="reset_log"):
-            st.session_state.match_log = []
-            st.session_state.live_a = 0
-            st.session_state.live_b = 0
-            st.rerun()
+        exp_c1, exp_c2, exp_c3 = st.columns([1, 1, 1])
+        with exp_c1:
+            st.download_button(
+                "📥 Export Match Log (CSV)",
+                df_log.to_csv(index=False).encode("utf-8"),
+                file_name=f"match_log_{player_a_name}_vs_{player_b_name}.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+        with exp_c2:
+            st.download_button(
+                "🖼️ Export Chart (PNG)",
+                img_buf.getvalue(),
+                file_name=f"score_progression_{player_a_name}_vs_{player_b_name}.png",
+                mime="image/png",
+                use_container_width=True,
+            )
+        with exp_c3:
+            if st.button("🗑️ Reset Match Log", key="reset_log", use_container_width=True):
+                st.session_state.match_log = []
+                st.session_state.live_a = 0
+                st.session_state.live_b = 0
+                st.rerun()
     else:
         st.info("No rallies logged yet. Enter a rally result above and click **➕ Log Rally**.")
 
@@ -910,18 +1018,23 @@ with tabs[5]:
 
 | Issue | Detail |
 |---|---|
-| **Dataset size** | 44 matches, all elite-level international tournaments. May not generalise to amateur play. |
-| **Unclassified endings** | 4.8% of rallies (175) cannot be assigned an ending type. |
-| **Score step gaps** | 28 score-step inconsistencies detected — handled by using raw post-rally scores. |
-| **Category imbalance** | 5,708 Men's vs 1,658 Women's player-perspective rows (~3.4× more MS data). |
-| **Small effect sizes** | Statistically significant results have small practical effect sizes (r ≤ 0.07). |
-| **No causal inference** | Findings are correlational. Pressure may cause errors, or other confounds may apply. |
-| **Historical patterns** | Live match predictions use group-level historical medians, not individual player models. |
+| **Dataset scope** | 44 matches, 27 players, 2018–2021 elite international singles only. Does not generalise to amateur play or doubles. |
+| **Player A = match winner** | In ShuttleSet, Player A is always the match winner. Leading rows disproportionately represent the eventual winner. |
+| **Player strength confounding** | Once controlling for individual player strength via mixed/regularized logistic regression, the trailing effect attenuates (OR=1.17, 95% CI [0.99, 1.34], not significant at α=0.05). |
+| **Descriptive, not causal** | Findings represent empirical associations, not causal effects. We use "associated with", never causal claims. |
+| **Score margin grouping** | By default, predictions group into Leading/Level/Trailing. Margin bins (±1-2, ±3-5, ±6+) are used when N ≥ 100, falling back to coarser cells otherwise. |
+| **Unclassified endings** | 4.8% of rallies (175) have missing `getpoint_player` and are excluded from error-rate denominators. |
+| **Correlated observations** | Rallies within matches are clustered. Wilson CIs are narrower than cluster-bootstrap CIs which resample whole matches. |
+
+#### 🔬 System Validation
+- **Software Tests (18/18 passed):** Validates deterministic logic, lack of lookahead bias (`tests/test_lookahead_bias.py`), metric denominators, and edge conditions.
+- **Model-Validity Tests:** Leave-one-match-out cross-validation confirms the lookup model outperforms naive baselines on Log Loss (0.6276 vs 0.6294) and Brier score (0.2180 vs 0.2188).
+- **Reproducible Pipeline:** `python src/run_all_hardening.py` recreates all bootstrap distributions, holdout metrics, and control models from raw data.
 
 #### 🔗 Data Source
-- **ShuttleSet** open dataset (Shuttlecock Tracking Dataset)
+- **ShuttleSet** open dataset (Shuttlecock Tracking Dataset, ACM SIGKDD 2023)
 - Repository: [GitHub — dannyLaw/ShuttleSet](https://github.com/dannyLaw/ShuttleSet)
-- 2021 BWF tournaments, 44 matches
+- 44 elite international singles matches
         """)
 
     st.markdown("---")

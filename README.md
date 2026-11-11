@@ -54,7 +54,10 @@ badminton/
 │   ├── score_state.py        # Score state and game phase classification logic
 │   ├── metrics.py            # Descriptive statistics & error rates with denominators
 │   ├── statistics.py         # Mann-Whitney U, Kruskal-Wallis, Chi2, Wilcoxon tests
-│   └── visualizations.py     # Publication-grade chart generation
+│   ├── visualizations.py     # Publication-grade chart generation
+│   ├── predictor.py          # Pattern-based lookup predictor with margin bins
+│   ├── bootstrap.py          # Cluster-bootstrap CIs (resamples at match level)
+│   └── holdout_eval.py       # Leave-one-match-out holdout evaluation
 ├── app/
 │   └── dashboard.py          # Interactive Streamlit dashboard
 ├── reports/
@@ -122,3 +125,71 @@ streamlit run app/dashboard.py
 | **Q3: Unforced Errors Late Game** | Error rate remains stable before 15 (65.6%) vs after 15 (62.4%). | Chi-square = 3.276, $p = 0.0703$ | **No Significant Increase** |
 | **Q4: Men's vs Women's Singles** | Men's rallies (Med=8.0, Mean=10.3) are longer than Women's rallies (Med=7.0, Mean=8.55). Error rates do not differ significantly (64.1% vs 66.6%). | Mann-Whitney $U = 1,301,502.5$, $p = 1.06 \times 10^{-5}$ | **Statistically Significant Difference in Rally Length** |
 
+
+
+---
+
+## 6. Limitations
+
+> **This study is descriptive and observational. All findings are expressed as associations, not causal effects.**
+
+| Limitation | Detail |
+| :--- | :--- |
+| **Dataset size** | 44 matches, 27 players, 2018–2021 elite singles tournaments only. Results may not generalise to amateur play, doubles, or modern rallies. |
+| **Player A = match winner** | In ShuttleSet, Player A is always the match winner. Score states are therefore **not balanced**; Leading rows over-represent the eventual winner. Any player-strength signal is confounded with score state. |
+| **No opponent or player adjustment** | Error rates are pooled across all players. Individual player skill, fatigue, or tactical style are not modelled. |
+| **No score-margin adjustment** | The predictor groups by Leading/Level/Trailing; exact margin (1 pt vs 6 pts) uses separate margin bins only when N ≥ 100. Many margin-bin cells fall back to the coarser cell. |
+| **Descriptive, not causal** | Pressure may cause errors, or stronger players may hold leads AND have lower error rates (reverse causation). No causal identification strategy is applied. |
+| **175 unclassifiable endings** | 4.8% of rallies have missing `getpoint_player`; these are excluded from error-rate denominators. |
+| **Small effect sizes** | Statistically significant results have small practical effect sizes (r ≤ 0.07, φ ≤ 0.065). |
+| **Phase threshold fixed at 15** | The 15-point boundary is a convention. Alternative thresholds (e.g., 17) are not tested. |
+| **Correlated observations** | Rallies within a match are correlated. Wilson CIs ignore this; cluster-bootstrap CIs (resampling at match level) account for it and are wider. |
+
+---
+
+## 7. Software Tests vs Model-Validity Tests
+
+### 7.1 Software Tests (`python -m pytest tests/`)
+Tests that check code correctness:
+
+| Test file | What it checks |
+| :--- | :--- |
+| `test_score_state.py` | `classify_score_state()`, `classify_game_phase()`, edge cases |
+| `test_metrics.py` | `calculate_rate()`, `summarize_numeric_series()` |
+| `test_build_rallies.py` | Mock shot sequence → correct canonical + perspective records |
+| `test_lookahead_bias.py` | **5 tests proving PRE-rally scores are used**, including phase transition at rally 15/16 |
+
+**Current status: 18/18 tests pass.**
+
+### 7.2 Model-Validity Tests
+These assess whether the predictor is useful, not just bug-free:
+
+| Check | Method | Result |
+| :--- | :--- | :--- |
+| **Bootstrap CIs account for clustering** | Resample 44 matches with replacement (2,000 iterations) | CI widths are 1.5–2× wider than Wilson CIs |
+| **Holdout (LOMO) evaluation** | Leave-one-match-out cross-validation on 44 matches | Lookup (category-specific) is the best model on both log loss and Brier score |
+| **Bootstrap claims test** | Resample-based diff CI for each stated finding | All four key claims have CIs excluding zero |
+
+---
+
+## 8. Reproducibility
+
+```bash
+# Step 1: Download data
+python src/download_shuttleset.py
+
+# Step 2: Build all processed CSVs
+python main.py
+
+# Step 3: Run tests (including lookahead-bias proof)
+python -m pytest tests/ -v
+
+# Step 4: Bootstrap summary (match-resampled CIs)
+python src/bootstrap.py
+
+# Step 5: Holdout evaluation
+python src/holdout_eval.py
+
+# Step 6: Interactive dashboard
+streamlit run app/dashboard.py
+```

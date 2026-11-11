@@ -1,0 +1,15 @@
+Score State,Game Phase,Margin Bin,N,Error Rate (%),Median Rally,Fallback Used
+Leading,After 15,±1-2,213,24.9,9.0,False
+Leading,After 15,±3-5,255,27.7,8.0,False
+Leading,After 15,±6+,335,24.3,6.0,False
+Level,After 15,Tied,126,33.3,9.0,False
+Trailing,After 15,±1-2,213,31.8,9.0,False
+Trailing,After 15,±3-5,255,38.2,8.0,False
+Trailing,After 15,±6+,335,37.7,6.0,False
+Leading,Before 15,±1-2,904,30.3,8.0,False
+Leading,Before 15,±3-5,571,30.7,9.0,False
+Leading,Before 15,±6+,197,24.9,7.0,False
+Level,Before 15,Tied,632,32.5,8.0,False
+Trailing,Before 15,±1-2,904,34.6,8.0,False
+Trailing,Before 15,±3-5,571,33.5,9.0,False
+Trailing,Before 15,±6+,197,41.8,7.0,False

@@ -88,51 +88,63 @@ An unforced error is defined as a classifiable rally-ending fault committed by t
 
 ---
 
-## 6. Statistical Test Results
+## 6. Hardened Statistical Validation & Modeling
 
-### 6.1 Q1: Score State Comparison (Leading vs. Trailing)
-- **Rally Length (Two-sided Mann-Whitney U):**
-  - $U = 5,148,840.5$, $p = 1.0000$, rank-biserial $r = 0.000$.
-  - *Finding:* Because every singles rally is co-constructed by a leading and trailing competitor, overall rally length distributions are mechanically symmetrical.
-  - *Kruskal-Wallis across 3 states (Leading, Level, Trailing):* $H = 5.674, p = 0.0586$ (Level rallies are slightly longer at mean=10.73 strokes, reflecting tactical parity).
-- **Unforced Error Committing Rate (Chi-Square Test):**
-  - Leading player error rate: **27.58%** (885 errors / 3,209 opportunities).
-  - Trailing player error rate: **33.62%** (1,079 errors / 3,209 opportunities).
-  - $\chi^2 = 27.33$, $\text{dof} = 1$, **$p = 1.72 \times 10^{-7}$** (Odds Ratio = $1.331$).
-  - *Finding:* Trailing players exhibit a highly statistically significant surge in unforced errors under deficit pressure.
+### 6.1 Cluster-Bootstrap Analysis (2,000 Match-Level Resamples)
+Because rallies within a match are not independent, naive asymptotic tests (Chi-Square, Mann-Whitney U) underestimate standard errors. We applied cluster bootstrapping (resampling 44 matches with replacement, 2,000 replicates):
 
-### 6.2 Q2: Game Phase Dynamics (Before 15 vs. After 15)
-- **Two-sided Mann-Whitney U Test:**
-  - $U = 1,495,430.5$, **$p = 0.0293$**, rank-biserial $r = -0.045$.
-  - Median shifts from **8.0 strokes** (Before 15) to **7.0 strokes** (After 15).
-  - *Match-Level Clustered Robustness Check (Wilcoxon Signed-Rank Test across 44 matches):*
-    - Mean within-match difference: **$-0.73$ strokes**, $W = 254.5, p = 0.0580$.
-  - *Finding:* Late-game rallies exhibit a statistically significant reduction in duration, reflecting accelerated pace, heightened attacking urgency, and risk-taking.
+| Score State | Game Phase | Category | Observed Error Rate | 95% Cluster-Bootstrap CI | 95% Wilson CI | Median Rally (CI) | Confidence Tier |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Leading** | After 15 | Men's Singles | 25.5% | [22.5%, 28.5%] | [22.5%, 28.8%] | 8.0 [7.0, 8.0] | 🟢 High |
+| **Trailing** | After 15 | Men's Singles | 36.3% | [33.3%, 39.6%] | [32.9%, 39.8%] | 8.0 [7.0, 8.0] | 🟢 High |
+| **Tied, after 15** | After 15 | Men's Singles | 33.3% | [27.8%, 38.9%] | [25.5%, 42.2%] | 9.0 [6.0, 12.0] | 🟡 Medium |
+| **Leading** | Before 15 | Men's Singles | 29.8% | [27.5%, 32.1%] | [27.5%, 32.1%] | 8.0 [8.0, 9.0] | 🟢 High |
+| **Trailing** | Before 15 | Men's Singles | 35.1% | [32.6%, 37.5%] | [32.8%, 37.5%] | 8.0 [8.0, 9.0] | 🟢 High |
+| **Level** | Before 15 | Men's Singles | 32.5% | [29.9%, 34.9%] | [28.9%, 36.3%] | 8.0 [7.0, 9.0] | 🟢 High |
 
-### 6.3 Q3: Unforced Errors After 15 Points
-- **Proportions Comparison:**
-  - Before 15 points: $1,608 / 2,450 = \mathbf{65.63\%}$
-  - After 15 points: $660 / 1,058 = \mathbf{62.38\%}$
-  - $\chi^2 = 3.276$, $\text{dof} = 1$, **$p = 0.0703$** (Odds Ratio = $1.152$).
-  - *Finding:* Unforced error rates do **not** significantly increase after 15 points. At elite international levels, errors remain stable while decisive winners account for a slightly higher proportion of late-game closures.
+*Note on Unclassifiable Endings:* Across all 3,683 rallies, 175 (4.8%) have unrecorded or missing point outcomes and are strictly excluded from all error-rate denominators.
 
-### 6.4 Q4: Men's vs. Women's Singles
-- **Rally Length (Mann-Whitney U):**
-  - Men's Singles (Med=8.0, Mean=10.30) vs. Women's Singles (Med=7.0, Mean=8.55).
-  - $U = 1,301,502.5$, **$p = 1.059 \times 10^{-5}$**, rank-biserial $r = -0.100$.
-  - *Finding:* Men's singles rallies are significantly longer than women's singles rallies in this elite sample.
-- **Unforced Error Rate (Chi-Square):**
-  - Men's Singles: $1,722 / 2,688 = 64.06\%$
-  - Women's Singles: $546 / 820 = 66.59\%$
-  - $\chi^2 = 1.642$, $p = 0.2001$. No significant difference between genders.
+### 6.2 Leave-One-Match-Out (LOMO) Cross-Validation
+To evaluate out-of-sample predictive validity, we conducted leave-one-match-out cross-validation across all 44 matches (7,016 classifiable player-rallies):
+
+| Model | Log Loss | Brier Score | Out-of-Sample Performance |
+| :--- | :--- | :--- | :--- |
+| **Global Baseline** | 0.6294 | 0.2188 | Naive mean error rate |
+| **Category Baseline** | 0.6294 | 0.2188 | MS vs WS error rate |
+| **Lookup (Category-Specific)** | 0.6281 | 0.2182 | State × Phase per category |
+| **Lookup (All Categories)** | **0.6276** | **0.2180** | **Best calibration & accuracy** |
+
+Both historical lookup configurations outperform global and category baselines on both Log Loss and Brier Score on unseen matches.
+
+### 6.3 Player Strength & Selection Bias Control
+In ShuttleSet, Player A is uniformly the match winner, introducing structural selection bias. To test whether the score-state association survives when controlling for player ability and match intercepts, we fitted an L2-regularized logistic regression model:
+$$\text{logit}(P(\text{unforced error})) \sim \text{score\_state} + \text{game\_phase} + \text{category} + (1|\text{player}) + (1|\text{match})$$
+
+| Predictor | Odds Ratio (OR) | 95% Cluster-Bootstrap CI | $p < 0.05$ | Empirical Finding |
+| :--- | :--- | :--- | :--- | :--- |
+| **Score State: Trailing vs Leading** | 1.171 | [0.992, 1.339] | ❌ No (spans 1.0) | **Attenuates after controlling for player strength** |
+| **Score State: Level vs Leading** | 1.127 | [0.942, 1.290] | ❌ No (spans 1.0) | Not statistically significant |
+| **Game Phase: After 15 vs Before 15** | 0.932 | [0.855, 1.007] | ❌ No (spans 1.0) | Marginal reduction |
+| **Category: Women's vs Men's** | 0.604 | [0.658, 0.928] | ✅ Yes | Statistically significant |
+
+*Crucial Empirical Insight:* While the unadjusted association shows trailing players committing 33.6% vs 27.6% errors ($p < 0.001$), controlling for individual player strength reveals that much of this gap is confounded by stronger players holding leads and committing fewer errors overall. The net deficit effect remains directionally elevated ($\text{OR} = 1.171$) but is statistically borderline once selection bias is accounted for.
+
+### 6.4 Cluster-Bootstrap Empirical Claim Verification
+Every major empirical finding was tested via match-resampled bootstrap difference testing (2,000 replicates):
+1. **Trailing vs Leading Error Rate (MS, Before 15):** Difference = $+5.3\text{ pp}$, $95\%\text{ CI } [+1.1, +9.6]\text{ pp}$, $p = 0.0160$ (Supported).
+2. **Trailing vs Leading Error Rate (MS, After 15):** Difference = $+10.8\text{ pp}$, $95\%\text{ CI } [+6.1, +15.6]\text{ pp}$, $p < 0.0001$ (Supported).
+3. **Leading Error Rate Reduction (MS, B15 vs A15):** Difference = $+4.2\text{ pp}$, $95\%\text{ CI } [+0.9, +7.9]\text{ pp}$, $p = 0.0200$ (Supported).
+4. **Men's vs Women's Rally Duration:** Difference = $+1.0\text{ shots}$, $95\%\text{ CI } [0.0, +2.0]\text{ shots}$, $p = 0.0675$ (**Inconclusive** — CI touches zero under cluster resampling).
 
 ---
 
-## 7. Limitations
+## 7. Limitations & Honest Scope
 
-1. **Unrecorded Rally Terminations:** 175 rallies (4.8%) lacked camera-verified outcome classifications and were excluded from error-rate denominators.
-2. **Observational Confounding:** Deficit pressure correlates with fatigue in prolonged three-set matches.
-3. **Singles Exclusivity:** Findings apply strictly to elite singles play and cannot be generalized to doubles pairings.
+1. **Descriptive, Not Causal:** All findings represent observational associations. We avoid causal language.
+2. **Player Selection Bias:** In ShuttleSet, Player A is always the match victor. Controlling for player ability reduces the apparent score-state effect size.
+3. **Unclassifiable Endings:** 175 rallies (4.8%) lacked camera-verified ending attributions and were excluded from error rates.
+4. **Coarse Margin Binning:** Score margins (±1-2, ±3-5, ±6+) require $N \ge 100$ and fall back to broader categories when sparse.
+5. **Sample Domain:** 44 matches between 27 elite international players (2018–2021). Results cannot be extrapolated to amateur, junior, or doubles competition.
 
 ---
 

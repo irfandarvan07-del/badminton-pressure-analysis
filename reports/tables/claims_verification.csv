@@ -1,0 +1,5 @@
+Claim,Observed Diff,95% Cluster-Bootstrap CI,Bootstrap p-value,CI Excludes Zero,Supported
+"Trailing vs Leading error rate (MS, Before 15)",+5.3 pp,"[1.1, 9.6] pp",0.0160,True,Supported (association)
+"Trailing vs Leading error rate (MS, After 15)",+10.8 pp,"[6.1, 15.6] pp",0.0000,True,Supported (association)
+Leaders error rate drops after 15 (MS),+4.2 pp,"[0.9, 7.9] pp",0.0200,True,Supported (association)
+MS median rally length longer than WS,+1.0 shots,"[0.0, 2.0] shots",0.0675,False,Inconclusive

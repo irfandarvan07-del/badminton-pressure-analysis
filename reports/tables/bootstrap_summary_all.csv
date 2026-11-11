@@ -1,0 +1,7 @@
+Score State,Game Phase,N (rallies),N (classifiable),Unclassifiable (%),Error Rate,Boot CI Low (ER%),Boot CI High (ER%),Boot CI Width (ER%),Wilson CI Low (ER%),Wilson CI High (ER%),Median Rally,Med CI Low,Med CI High,Mean Rally,Rally IQR,Rally Skew,N Matches,Confidence
+Leading,After 15,1042,989,5.1,26.3,23.5,29.1,5.6,23.6,29.1,7.0,7.0,8.0,9.4,9.0,1.86,44,🟢 High
+Level,After 15,144,138,4.2,32.6,27.1,37.8,10.6,25.4,40.8,9.0,6.0,12.0,12.7,16.5,1.24,24,🟡 Medium
+Trailing,After 15,1042,989,5.1,35.9,32.8,38.9,6.1,33.0,38.9,7.0,7.0,8.0,9.4,9.0,1.86,44,🟢 High
+Leading,Before 15,2167,2061,4.9,30.3,28.4,32.4,3.9,28.4,32.3,8.0,8.0,9.0,10.0,9.0,1.62,44,🟢 High
+Level,Before 15,804,778,3.2,33.3,31.0,35.7,4.7,30.1,36.7,8.0,7.0,9.0,10.4,9.0,1.74,44,🟢 High
+Trailing,Before 15,2167,2061,4.9,35.1,33.0,37.2,4.2,33.1,37.2,8.0,8.0,9.0,10.0,9.0,1.62,44,🟢 High
