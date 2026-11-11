@@ -428,6 +428,8 @@ with tabs[2]:
         .agg(N="count", Errors="sum")
         .reset_index()
     )
+    err_by_state["N"]      = pd.to_numeric(err_by_state["N"],      errors="coerce")
+    err_by_state["Errors"] = pd.to_numeric(err_by_state["Errors"], errors="coerce")
     err_by_state["Error Rate (%)"] = (err_by_state["Errors"] / err_by_state["N"] * 100).round(1)
 
     # Error rates by game phase
@@ -436,6 +438,8 @@ with tabs[2]:
         .agg(N="count", Errors="sum")
         .reset_index()
     )
+    err_by_phase["N"]      = pd.to_numeric(err_by_phase["N"],      errors="coerce")
+    err_by_phase["Errors"] = pd.to_numeric(err_by_phase["Errors"], errors="coerce")
     err_by_phase["Error Rate (%)"] = (err_by_phase["Errors"] / err_by_phase["N"] * 100).round(1)
 
     col_a, col_b = st.columns(2)
@@ -496,6 +500,8 @@ with tabs[2]:
     pivot = classifiable.groupby(["score_state", "game_phase"])["unforced_error"].agg(
         N="count", Errors="sum"
     ).reset_index()
+    pivot["N"]      = pd.to_numeric(pivot["N"],      errors="coerce")
+    pivot["Errors"] = pd.to_numeric(pivot["Errors"], errors="coerce")
     pivot["Error Rate (%)"] = (pivot["Errors"] / pivot["N"] * 100).round(1)
     heat_df = pivot.pivot(index="score_state", columns="game_phase", values="Error Rate (%)")
 
