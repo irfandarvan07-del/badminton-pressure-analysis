@@ -128,3 +128,4 @@ if __name__ == "__main__":
     print("\n=== Player Strength Control Model ===")
     print(res["summary_table"].to_string(index=False))
     print(f"\nTrailing effect survives control: {res['trailing_survives']}")
+
